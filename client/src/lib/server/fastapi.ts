@@ -55,7 +55,7 @@ export async function fastApiFetch<T>(path: string, init: RequestInit = {}): Pro
     });
   } catch (error) {
     throw new FastApiProxyError(
-      "Failed to reach FastAPI backend",
+      "Failed to reach backend",
       502,
       error instanceof Error ? error.message : String(error),
     );
