@@ -4,7 +4,6 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.params import Query
 from pydicom.filebase import DicomBytesIO
 from sqlalchemy import select
@@ -36,27 +35,12 @@ router = APIRouter(
 )
 
 
-async def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
-):
-    try:
-        user = supabase.auth.get_user(credentials.credentials)
-        return user
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
 SessionDep = Annotated[Session, Depends(get_session)]
-AuthDep = Annotated[dict, Depends(verify_token)]
 
 
 @router.get("/")
 async def get_patients(
-    auth: AuthDep, session: SessionDep, limit: Annotated[int, Query(le=100)] = 10
+    session: SessionDep, limit: Annotated[int, Query(le=100)] = 10
 ) -> List[Patient]:
     """Get all patients with pagination"""
     db_patients = session.exec(select(Patient).limit(limit)).all()
@@ -66,9 +50,7 @@ async def get_patients(
 
 
 @router.get("/{patient_id}")
-async def get_patient(
-    patient_id: str, session: SessionDep, auth: AuthDep
-) -> PatientIndividual:
+async def get_patient(patient_id: str, session: SessionDep) -> PatientIndividual:
     """Get a specific patient by ID"""
     patient = session.get(Patient, patient_id)
     if not patient:
@@ -150,7 +132,6 @@ async def get_patient(
 
 @router.post("/create", response_model=Patient)
 async def create_patient(
-    auth: AuthDep,
     session: SessionDep,
     name: str = Form(...),
     age: int = Form(...),
@@ -216,7 +197,7 @@ async def create_patient(
 
 
 @router.delete("/{patient_id}")
-async def delete_patient(patient_id: str, session: SessionDep, auth: AuthDep):
+async def delete_patient(patient_id: str, session: SessionDep):
     try:
         patient = session.get(Patient, patient_id)
         if not patient:
@@ -254,7 +235,6 @@ async def delete_patient(patient_id: str, session: SessionDep, auth: AuthDep):
 
 @router.put("/{patient_id}")
 async def update_patient(
-    auth: AuthDep,
     session: SessionDep,
     name: str = Form(...),
     age: int = Form(...),
